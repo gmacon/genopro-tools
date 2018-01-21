@@ -1,40 +1,43 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python3
 
-import argparse
 import logging
-import sys
 import zipfile
 
-import bs4
+import click
+from lxml import etree
 
-if __name__ == '__main__':
-    parser = argparse.ArgumentParser(description="Whelchel GenoPro tools")
-    parser.add_argument("genofile", help='The GenoPro file to modify')
-    parser.add_argument("command", help="The command to run")
-    args, rest = parser.parse_known_args()
-    
+
+@click.group()
+@click.argument('genofile', type=click.File('r+b'),
+                help='The GenoPro file to modify')
+@click.pass_context
+def cli(ctx, genofile):
     logging.basicConfig()
 
-    # Read input
-    if args.genofile == '-':
-        geno = bs4.BeautifulSoup(sys.stdin, "xml")
-    elif zipfile.is_zipfile(args.genofile):
-        with zipfile.ZipFile(args.genofile, 'r') as z:
-            with z.open('Data.xml', 'r') as d:
-                geno = bs4.BeautifulSoup(d, 'xml')
+    if genofile.seekable and zipfile.is_zipfile(genofile):
+        with zipfile.ZipFile(genofile, 'r') as zf:
+            with zf.open('Data.xml', 'rb') as xml:
+                geno = etree.parse(xml)
     else:
-        with open(args.genofile, 'r') as d:
-                geno = bs4.BeautifulSoup(d, 'xml')
-    
-    # Execute command
-    __import__("commands." + args.command)
-    change = sys.modules["commands." + args.command].main(geno, rest)
-    
-    # Write output
-    if change:
-        if args.genofile == '-':
-            sys.stdout.write(str(geno))
-        else:
-            with zipfile.ZipFile(args.genofile, 'w') as z:
-                print "Writing back"
-                z.writestr("Data.xml", str(geno), zipfile.ZIP_DEFLATED)
+        geno = etree.parse(genofile)
+
+    ctx.obj = {'tree': geno}
+
+
+@cli.resultcallback()
+@click.pass_context
+def done(ctx, changed, genofile):
+    geno = ctx.obj['tree']
+
+    if not genofile.seekable:
+        geno.write(genofile)
+    else:
+        genofile.seek(0)
+        genofile.truncate(0)
+        with zipfile.ZipFile(genofile, 'w') as zf:
+            with zf.open('Data.xml', 'wb') as xml:
+                geno.write(xml)
+
+
+if __name__ == '__main__':
+    cli()
