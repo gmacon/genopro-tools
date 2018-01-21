@@ -6,8 +6,7 @@ from lxml import etree
 
 
 @click.group()
-@click.argument('genofile', type=click.File('r+b'),
-                help='The GenoPro file to modify')
+@click.argument('genofile', type=click.File('r+b'))
 @click.pass_context
 def cli(ctx, genofile):
     logging.basicConfig()
