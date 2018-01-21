@@ -1,34 +1,37 @@
-"""
-next_year.py
-
-Advance the database to the next year.
-"""
-
-import argparse
 import logging
+
+import click
+
+from .base import cli
 
 logger = logging.getLogger(__name__)
 
-def main(geno, rest):
-    parser = argparse.ArgumentParser("Advance database to next year")
-    parser.add_argument('--year', type=int, help='The year to advance to')
-    args = parser.parse_args(rest)
-    
-    year = geno.X_TAGYEAR
-    if args.year:
-        year.string = str(args.year)
+
+@cli.command()
+@click.option('--year', type=int, help='The year to advance to')
+@click.pass_context
+def next_year(ctx, year):
+    geno = ctx.obj['tree']
+
+    tagyear = next(geno.iter('X_TAGYEAR'))
+
+    if year is None:
+        tagyear.text = str(int(tagyear.text) + 1)
     else:
-        year.string = str(int(year.string) + 1)
-    
-    for i in geno("Individual"):
-        if i.has_attr("IndividualInternalHyperlink"):
+        tagyear.text = str(year)
+
+    for i in geno.iter('Individual'):
+        if i.get('IndividualInternalHyperlink') is not None:
             continue
-        normal = i.X_NORMAL
+
+        normal = i.find('X_NORMAL')
         if normal is None:
+            displayname = i.xpath('Name/Display')
             logger.warning(
-                "Individual %s has no normal attendance.",
-                i.Name.Display.string)
+                'Individual %s (%s) has no normal attendance.',
+                i.get('ID'),
+                displayname[0].text if displayname else '?')
         else:
-            i.X_NAMTAG.string = normal.string
-    
+            i.find('X_NAMTAG').text = normal.text
+
     return True
