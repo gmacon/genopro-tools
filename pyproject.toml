@@ -5,9 +5,9 @@ description = ""
 authors = ["George Macon <george.macon@gmail.com>"]
 
 [tool.poetry.dependencies]
-python = "^3.6"
-click = "^7.0"
-lxml = "^4.3"
+python = ">=3.6"
+click = ">=7.0"
+lxml = ">=4.3"
 
 [tool.poetry.dev-dependencies]
 
